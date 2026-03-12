@@ -6,16 +6,20 @@ Data sources:
   - Child Care Centers: resource ID 5bac6551-4d6c-45d6-93b8-e6ded428d98e
   - Family Child Care Homes: resource ID a8615948-c56f-4dba-90f5-5f802490a221
 
-Uses only Python stdlib: urllib, json, csv, datetime, pathlib, sys.
+Uses only Python stdlib: urllib, json, csv, datetime, pathlib, time.
 """
 
 import csv
 import json
-import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+RETRY_ATTEMPTS = 3
+RETRY_BACKOFF = 5  # seconds; doubles on each retry
 
 BASE_URL = "https://data.ca.gov/api/3/action/datastore_search"
 COUNTY_FILTER = {"county_name": "ALAMEDA"}
@@ -27,6 +31,21 @@ RESOURCES = {
 }
 
 DATA_DIR = Path(__file__).parent / "data"
+
+
+def fetch_url(req: urllib.request.Request) -> dict:
+    """Fetch a URL with retry logic for transient failures."""
+    delay = RETRY_BACKOFF
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError) as exc:
+            if attempt == RETRY_ATTEMPTS:
+                raise
+            print(f"  Request failed (attempt {attempt}/{RETRY_ATTEMPTS}): {exc}. Retrying in {delay}s...")
+            time.sleep(delay)
+            delay *= 2
 
 
 def fetch_all_rows(resource_id: str) -> list[dict]:
@@ -46,8 +65,7 @@ def fetch_all_rows(resource_id: str) -> list[dict]:
         req = urllib.request.Request(
             url, headers={"User-Agent": "ccld-open-data-tracker/1.0"}
         )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        data = fetch_url(req)
 
         if not data.get("success"):
             raise RuntimeError(f"API error for resource {resource_id}: {data}")
