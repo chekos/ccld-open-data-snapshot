@@ -1,0 +1,41 @@
+name: Scrape CCLD Data
+
+on:
+  schedule:
+    - cron: "0 6 */2 * *"  # Every 2 days at 6am UTC
+  workflow_dispatch:        # Allow manual triggers
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run scraper
+        run: python scrape.py
+
+      - name: Commit and push changes (if any)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Exit early if CSV data files did not change
+          if git diff --exit-code -- data/centers.csv data/homes.csv; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          # Build commit message from metadata
+          FILE_DATE=$(python -c "import json; m=json.load(open('data/metadata.json')); print(m['file_date'])")
+          CENTERS=$(python -c "import json; m=json.load(open('data/metadata.json')); print(m['centers_total'])")
+          HOMES=$(python -c "import json; m=json.load(open('data/metadata.json')); print(m['homes_total'])")
+          TODAY=$(date -u +%Y-%m-%d)
+          MSG="data: ${TODAY} | centers=${CENTERS} homes=${HOMES} | file_date=${FILE_DATE}"
+
+          git add data/
+          git commit -m "$MSG"
+          git push
