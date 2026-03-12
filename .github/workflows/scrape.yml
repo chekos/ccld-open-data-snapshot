@@ -23,8 +23,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Exit early if nothing changed
-          if git diff --exit-code; then
+          # Exit early if CSV data files did not change
+          if git diff --exit-code -- data/centers.csv data/homes.csv; then
             echo "No changes to commit."
             exit 0
           fi
