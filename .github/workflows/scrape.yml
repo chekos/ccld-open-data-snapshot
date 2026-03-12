@@ -23,8 +23,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Exit early if CSV data files did not change
-          if git diff --exit-code -- data/centers.csv data/homes.csv; then
+          git add data/
+
+          # Exit early if CSV data files did not change (checks staged changes,
+          # so new untracked files are also detected)
+          if git diff --cached --exit-code -- data/centers.csv data/homes.csv; then
             echo "No changes to commit."
             exit 0
           fi
@@ -36,6 +39,5 @@ jobs:
           TODAY=$(date -u +%Y-%m-%d)
           MSG="data: ${TODAY} | centers=${CENTERS} homes=${HOMES} | file_date=${FILE_DATE}"
 
-          git add data/
           git commit -m "$MSG"
           git push
