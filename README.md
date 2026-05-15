@@ -54,6 +54,37 @@ python scrape.py
 
 No dependencies beyond Python's standard library.
 
+## Per-facility detail: the Transparency API
+
+The open data CSVs are the bulk inventory. For richer per-facility data — capacity
+overrides, license dates, visit counts, complaint outcomes, evaluation reports —
+CCLD exposes an undocumented JSON API at
+`https://www.ccld.dss.ca.gov/transparencyapi/api/`. The Care Facility Search SPA
+uses it; nothing else has to.
+
+See [`docs/transparency-api.md`](docs/transparency-api.md) for the full endpoint
+surface, response shapes, and gotchas.
+
+Quickest demonstration:
+
+```bash
+uv run verify.py 13423996
+# FOUND      013423996  'JOHNSON III, JOHNNY'
+#   type     FAMILY DAY CARE HOME
+#   status   Licensed
+#   ...
+```
+
+Batch mode reads license numbers from a CSV column and writes TSV to stdout:
+
+```bash
+uv run verify.py licenses.csv --col facnum > verified.tsv
+```
+
+The endpoint surface was reverse-engineered in May 2026 while reconciling First 5
+R&R intake data. Re-run `scripts/discover_endpoints.py` after CCLD SPA upgrades to
+confirm the documented endpoints still exist.
+
 ## Repo structure
 
 ```
@@ -63,7 +94,12 @@ No dependencies beyond Python's standard library.
 │   ├── centers.csv                # Child Care Centers (Alameda County)
 │   ├── homes.csv                  # Family Child Care Homes (Alameda County)
 │   └── metadata.json              # Scrape timestamp, row counts, file_date
-├── scrape.py                      # Scraper script (stdlib only)
+├── docs/
+│   └── transparency-api.md        # Reverse-engineered per-facility JSON API
+├── scripts/
+│   └── discover_endpoints.py      # Playwright-based API rediscovery tool
+├── scrape.py                      # Bulk CKAN scraper (stdlib only)
+├── verify.py                      # Per-facility verifier using transparencyapi
 └── README.md
 ```
 
