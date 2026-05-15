@@ -104,7 +104,15 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Verify CCLD facility licenses.")
     p.add_argument("target", help="A single facility number, or a path to a CSV.")
     p.add_argument("--col", default="facnum", help="CSV column with license numbers (default: facnum)")
-    p.add_argument("--delay", type=float, default=0.5, help="Seconds between batch requests (default: 0.5)")
+    p.add_argument(
+        "--delay",
+        type=float,
+        default=0.5,
+        help=(
+            "Seconds between batch requests (default: 0.5). CCLD publishes no rate "
+            "limit; 0.5s is a politeness floor — see docs/transparency-api.md."
+        ),
+    )
     args = p.parse_args()
 
     path = Path(args.target)

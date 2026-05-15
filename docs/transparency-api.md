@@ -36,6 +36,17 @@ None of that is in the open data export.
 
 None. No API key, no token, no cookie. Just a `User-Agent` header is enough.
 
+## Rate limiting
+
+CCLD doesn't publish a limit and doesn't return `X-RateLimit-*` headers. During the
+May 2026 reverse-engineering session, sub-second back-to-back requests succeeded but
+the underlying server is slow: the SPA-driven flow on `secure.dss.ca.gov/CareFacilitySearch/`
+timed out at 60s under Playwright `domcontentloaded`, while plain
+`urllib`/`curl` against `transparencyapi/api/` resolved in ~1–2s consistently. The
+`verify.py` batch loop defaults to a `--delay 0.5` (one request every 500ms) on the
+principle of *don't be the one who breaks this for everybody else*. Tune up for
+small batches; leave it alone for batches over a few hundred.
+
 ## Facility number encoding
 
 Every endpoint that takes a facility number expects it **left-padded to 9 digits with
@@ -83,8 +94,10 @@ Full record for one facility. Returns `{FacilityDetail: {…}, TSO: {…}}`.
 | `CMPCOUNT`, `COMPLAINTARRAY` | Itemized complaint records (empty array if none) |
 | `TOTCMPVISITS`, `TOTSUBALG`, `TOTINCALG`, `TOTUNSALG`, `TOTUNFALG`, `TOTTYPEA`, `TOTTYPEB` | Lifetime aggregates |
 
-`TSO` is the Transparency Site Override block — non-empty if the facility has had a
-public administrative action (revocation, civil penalty, etc.):
+`TSO` is the Transparency Site Override block — meant to surface administrative
+actions (revocation, civil penalty, etc.). In practice every TSO record sampled
+during reverse-engineering returned the default empty shape, including facilities
+flagged `ON PROBATION` in CKAN — see the "STATUS taxonomy" section below:
 
 ```json
 { "FacilityNumber": "", "CaseClosed": false, "PleadingDate": "1/1/0001", "ActionType": "" }
@@ -95,7 +108,45 @@ public administrative action (revocation, civil penalty, etc.):
 JSON, an unknown facility returns `FacilityDetail` with empty strings for most fields
 and `STATUS == ""`. **Closed facilities are not returned via search** but *are*
 returned via `FacilityDetail/{facnum}` (the API does not gate by status the way the
-form does).
+form does). Concretely: R&R 8290 (Bananas) listed `AHMADI, MARIAM` as active for
+license `013423958`; `FacilityDetail/013423958` returns the full record with
+`STATUS: "Closed, Licensee Initiated"` — the closure is invisible to `FacilitySearch`
+but visible to `FacilityDetail`.
+
+#### STATUS taxonomy (observed)
+
+`FacilityDetail.STATUS` is more granular than the CKAN `facility_status` column.
+Values sampled from Alameda data in May 2026:
+
+| API `STATUS` | Meaning |
+|--------------|---------|
+| `Licensed` | Active license |
+| `Licensed/Pending Increase` | Active, with a capacity-increase application open |
+| `Provisional License` | Initial license, time-limited |
+| `Pending` | Application in review |
+| `Application Withdrawn` | Application abandoned before licensing |
+| `Closed, Licensee Initiated` | Voluntary surrender |
+| `Closed, Change of Ownership` | License retired during sale/transfer |
+| `Closed, Non-payment` | Fee-related closure |
+| `""` (empty) | Facility not exposed by the API — see below |
+
+Other closure reasons surely exist (revocation, death, etc.) but weren't in the
+sample.
+
+##### Where CKAN and the API disagree
+
+| CKAN `facility_status` | What the API returns |
+|------------------------|---------------------|
+| `LICENSED` | `Licensed` (~85% of sampled), occasionally `Licensed/Pending Increase`, rarely `Closed, Non-payment` (API is fresher) |
+| `CLOSED` | Always a `Closed, …` reason — the API exposes the *why*, CKAN doesn't |
+| `PENDING` | Splits across `Pending`, `Provisional License`, `Application Withdrawn`, or already-promoted-to `Licensed` |
+| `INACTIVE` | Empty `STATUS` for 19 of 20 sampled — the API effectively does not surface inactive facilities. Treat CKAN as the only source for this status. |
+| `ON PROBATION` | `Licensed` with an empty `TSO` block — **probation is hidden by the Transparency API**. CKAN is the only public source. |
+
+Practical implication: when comparing CKAN and API state, never assume drift means
+the API is wrong. The two are answering different questions — CKAN is the
+administrative roster, the API is the enforcement-facing public view, and the
+enforcement view deliberately omits probation and inactive states.
 
 ### `GET /FacilityReports/{padded_facnum}`
 
