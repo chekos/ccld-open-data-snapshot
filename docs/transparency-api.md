@@ -206,6 +206,14 @@ Gotchas:
 - `facType=All` returns 400.
 - The 250-result cap is hard. There's no `offset` / `page` parameter. If you need
   more than 250 facilities of a type, filter by ZIP or city.
+- **`city` + `county` filter combination silently returns 0.** The two filters
+  appear to AND in a way that doesn't produce results. Use one or the other, not
+  both. Confirmed across `facType=850`, `840`, and `860`.
+- `facType=845` ("Child Care Center" per the `Group/` taxonomy) contains only 4
+  records statewide as of May 2026 — likely a deprecated/legacy bucket. The bulk
+  of facilities CKAN labels `DAY CARE CENTER` (642 in Alameda) live in
+  `facType=850` (Child Care Center Preschool) here. Cross-check the `Group/`
+  taxonomy against actual record counts before designing around any facType.
 
 ### `GET /FacilitySearch/GetByLicensee?licensee={exact_name}`
 
