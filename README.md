@@ -7,7 +7,7 @@ data for **Alameda County**, updated every 2 days via
 ## What this tracks
 
 This repository automatically downloads child care provider licensing records from
-California's [CCLD open data portal](https://data.ca.gov/) and commits the results to
+the [CHHS Open Data Portal](https://data.chhs.ca.gov/dataset/ccl-facilities) (CKAN dataset `46ffcbdf-4874-4cc1-92c2-fb715e3ad014`) and commits the results to
 git. By diffing commits you can see exactly which providers were added, removed, or
 changed their status over time.
 
@@ -15,8 +15,8 @@ Two datasets are tracked:
 
 | File | Description | CKAN Resource ID |
 |------|-------------|-----------------|
-| `data/centers.csv` | Child Care Centers | `5bac6551-4d6c-45d6-93b8-e6ded428d98e` |
-| `data/homes.csv` | Family Child Care Homes | `a8615948-c56f-4dba-90f5-5f802490a221` |
+| `data/centers.csv` | Child Care Centers | `7aed8063-cea7-4367-8651-c81643164ae0` |
+| `data/homes.csv` | Family Child Care Homes | `4b5cc48d-03b1-4f42-a7d1-b9816903eb2b` |
 
 Both datasets are filtered to **Alameda County** and sourced from the California
 Department of Social Services (CDSS).
@@ -44,7 +44,7 @@ git diff HEAD~1 HEAD -- data/centers.csv
 ## Data license
 
 The data is published under a **CC-BY** license by the California Department of Social
-Services. Attribution: CDSS / data.ca.gov.
+Services. Attribution: CDSS / data.chhs.ca.gov.
 
 ## Running manually
 
@@ -109,7 +109,9 @@ A [GitHub Actions](https://docs.github.com/en/actions) workflow runs `scrape.py`
 2 days at 06:00 UTC. The script:
 
 1. Fetches all records from each CKAN datastore resource (paginating with `limit=5000`)
-2. Saves sorted, deterministically ordered CSV files so diffs only show real changes
+2. Normalizes the publisher's zero-padded integers and M/D/YYYY dates to unpadded
+   integers and ISO timestamps, then saves sorted, deterministically ordered CSV files
+   so diffs only show real changes
 3. Writes a `data/metadata.json` with the scrape timestamp, row counts, and CDSS extract
    date (`file_date`)
 4. Commits and pushes **only if the data changed**
