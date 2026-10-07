@@ -1,16 +1,22 @@
 """
-Scrape CCLD (Community Care Licensing Division) data from data.ca.gov
-for Alameda County and save as CSV files with metadata.
+Scrape CCLD (Community Care Licensing Division) data from the CHHS Open Data
+Portal (data.chhs.ca.gov) for Alameda County and save as CSV files with metadata.
 
-Data sources:
-  - Child Care Centers: resource ID 5bac6551-4d6c-45d6-93b8-e6ded428d98e
-  - Family Child Care Homes: resource ID a8615948-c56f-4dba-90f5-5f802490a221
+Data sources (CKAN dataset 46ffcbdf-4874-4cc1-92c2-fb715e3ad014):
+  - Child Care Centers: resource ID 7aed8063-cea7-4367-8651-c81643164ae0
+  - Family Child Care Homes: resource ID 4b5cc48d-03b1-4f42-a7d1-b9816903eb2b
+
+The CHHS datastore types every column as text and publishes zero-padded
+integers (facility_number, regional_office, file_date) and M/D/YYYY dates.
+normalize_row() writes them in the stable output format the CSVs have always
+used: unpadded integers and ISO "YYYY-MM-DDT00:00:00" timestamps.
 
 Uses only Python stdlib: urllib, json, csv, datetime, pathlib, time.
 """
 
 import csv
 import json
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -21,14 +27,18 @@ from pathlib import Path
 RETRY_ATTEMPTS = 3
 RETRY_BACKOFF = 5  # seconds; doubles on each retry
 
-BASE_URL = "https://data.ca.gov/api/3/action/datastore_search"
+BASE_URL = "https://data.chhs.ca.gov/api/3/action/datastore_search"
 COUNTY_FILTER = {"county_name": "ALAMEDA"}
 LIMIT = 5000
 
 RESOURCES = {
-    "centers": "5bac6551-4d6c-45d6-93b8-e6ded428d98e",
-    "homes": "a8615948-c56f-4dba-90f5-5f802490a221",
+    "centers": "7aed8063-cea7-4367-8651-c81643164ae0",
+    "homes": "4b5cc48d-03b1-4f42-a7d1-b9816903eb2b",
 }
+
+# Columns written as unpadded integers, and columns written as ISO timestamps.
+INTEGER_FIELDS = ("facility_number", "regional_office", "file_date")
+DATE_FIELDS = ("license_first_date", "closed_date")
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -76,7 +86,7 @@ def fetch_all_rows(resource_id: str) -> list[dict]:
             print(f"  Total rows: {total}")
 
         batch = result["records"]
-        rows.extend(batch)
+        rows.extend(normalize_row(record) for record in batch)
         offset += len(batch)
         print(f"  Fetched {offset}/{total} rows...")
 
@@ -84,6 +94,28 @@ def fetch_all_rows(resource_id: str) -> list[dict]:
             break
 
     return rows
+
+
+def normalize_row(row: dict) -> dict:
+    """Write zero-padded integers unpadded and M/D/YYYY dates as ISO timestamps.
+
+    Values that do not match the expected shape pass through unchanged, so a
+    publisher format change shows up in the diff instead of being dropped.
+    """
+    out = dict(row)
+    for field in INTEGER_FIELDS:
+        value = out.get(field)
+        if isinstance(value, str) and re.fullmatch(r"\d+", value.strip()):
+            out[field] = str(int(value.strip()))
+    for field in DATE_FIELDS:
+        value = out.get(field)
+        if isinstance(value, str) and value.strip():
+            try:
+                parsed = datetime.strptime(value.strip(), "%m/%d/%Y")
+            except ValueError:
+                continue
+            out[field] = parsed.strftime("%Y-%m-%dT00:00:00")
+    return out
 
 
 def parse_file_date(raw: object) -> str:

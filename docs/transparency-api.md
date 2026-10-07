@@ -14,7 +14,7 @@ against the canonical CCLD record (May 2026).
 
 ## Why this matters
 
-The [data.ca.gov CKAN open data](https://data.ca.gov/) feed (used by `scrape.py` in this
+The [CHHS Open Data Portal CKAN](https://data.chhs.ca.gov/) feed (used by `scrape.py` in this
 repo) is the **bulk inventory**: one row per facility, ~2,000 facilities for Alameda
 County, refreshed by CDSS roughly monthly.
 
