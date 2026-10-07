@@ -43,8 +43,10 @@ git diff HEAD~1 HEAD -- data/centers.csv
 
 ## Data license
 
-The data is published under a **CC-BY** license by the California Department of Social
-Services. Attribution: CDSS / data.chhs.ca.gov.
+The data is published by the California Department of Social Services (CDSS) on the
+[CHHS Open Data Portal](https://data.chhs.ca.gov/dataset/ccl-facilities) and is used
+under the [CalHHS Open Data Portal Terms of Use](https://data.chhs.ca.gov/pages/terms).
+Attribution: CDSS / data.chhs.ca.gov.
 
 ## Running manually
 
