@@ -16,7 +16,9 @@ against the canonical CCLD record (May 2026).
 
 The [CHHS Open Data Portal CKAN](https://data.chhs.ca.gov/) feed (used by `scrape.py` in this
 repo) is the **bulk inventory**: one row per facility, ~2,000 facilities for Alameda
-County, refreshed by CDSS roughly monthly.
+County. CDSS refreshes it on no declared schedule. As of 2026-10-07 the newest data is
+from May 2025: the per-type resources were last modified 2025-05-27, every row carries
+`file_date` 05252025, and the bulk zip rebuilt 2025-11-06 has the same facility counts.
 
 The Transparency API is the **per-facility detail layer**:
 
